@@ -7,3 +7,4 @@ PyYAML
 redis
 requests
 tenacity
+monday-api-python-sdk

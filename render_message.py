@@ -4,7 +4,7 @@ from typing import Literal
 
 from watcher.base import ReleaseInfo
 
-RenderFormat = Literal["markdown", "html", "text"]
+RenderFormat = Literal["markdown", "html", "text", "dict"]
 
 
 def render_message(repo_id: str, release: ReleaseInfo, render_format: RenderFormat = "text") -> str:
@@ -13,6 +13,12 @@ def render_message(repo_id: str, release: ReleaseInfo, render_format: RenderForm
         "<hr><p>Powered by <a href='https://github.com/nikhilbadyal/release-tracker'>release-tracker</a></p>"
     )
     footer_text: str = "\n\n---\nPowered by: https://github.com/nikhilbadyal/release-tracker"
+
+    if render_format == "dict":
+        return {
+            "repo_id": repo_id,
+            "release": release,
+        }
 
     if render_format == "markdown":
         # Check if ReleaseInfo has a source URL

@@ -5,9 +5,11 @@ import requests
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from notifier.apprise import AppriseNotifier
+from notifier.monday import MondayNotifier
 from notifier.base import Notifier
 from persistence.base import PersistenceBackend
 from persistence.redis_store import RedisStore
+from persistence.file_store import FileBackend
 from watcher.apkmirror import APKMirrorWatcher
 from watcher.apkpure import APKPureWatcher
 from watcher.base import Watcher
@@ -52,6 +54,8 @@ def build_watcher(watcher_type: str, config: dict[str, Any]) -> Watcher:
 def get_backend(config: dict[str, Any]) -> PersistenceBackend:
     if config["type"] == "redis":
         return RedisStore(**config["config"])
+    elif config["type"] == "file":
+        return FileBackend(**config["config"])
     msg = f"[ERROR] Persistence backend '{config['type']}' not supported"
     raise NotImplementedError(msg)
 
@@ -82,6 +86,12 @@ def get_notifier(config: dict[str, Any]) -> Notifier:
         if "format" in config:
             notifier_config["format"] = config["format"]
         notifier = AppriseNotifier(notifier_config)
+    elif notifier_type == "monday":
+        # Pass the format in the config so AppriseNotifier can handle it properly
+        notifier_config = config["config"].copy()
+        if "format" in config:
+            notifier_config["format"] = config["format"]
+        notifier = MondayNotifier(notifier_config)
     else:
         msg = f"Unsupported notifier type: {notifier_type}"
         raise ValueError(msg)
