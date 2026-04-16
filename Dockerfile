@@ -12,6 +12,7 @@ COPY . /app
 RUN chown -R appuser:appuser /app
 
 # Switch to the non-privileged user
+RUN dpkg -r --force-remove-essential --ignore-depends libsystemd0 ncurses-base ncurses-bin libncursesw6
 USER appuser
 
 ENTRYPOINT ["python", "main.py"]
