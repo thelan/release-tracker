@@ -10,11 +10,9 @@
 # This template uses one generic job with conditional builds
 # for the default branch and all other (MR) branches.
 
-build:
+build-with-buildah:
   stage: build
-  image:
-    name: gcr.io/kaniko-project/executor:v1.9.0-debug
-    entrypoint: [""]
+  image: quay.io/buildah/stable:latest
   script:
     - |
       if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
@@ -24,15 +22,14 @@ build:
         tag="$CI_COMMIT_REF_SLUG"
         echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
       fi
-    - /kaniko/executor
-      --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}:${tag}"
-  rules:
-    - if: $CI_COMMIT_BRANCH
-      exists:
-        - Dockerfile
-
+    - echo "$CI_REGISTRY_PASSWORD" | buildah login --username "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - buildah build --tag $CI_REGISTRY_IMAGE:latest .
+    - buildah push $CI_REGISTRY_IMAGE:$tag
+    # ADISTA
+    - echo "$ADISTA_REGISTRY_PASSWORD" | buildah login --username "${ADISTA_REGISTRY_LOGIN}" --password-stdin registry.corp.adista.fr
+    - buildah tag $CI_REGISTRY_IMAGE:$tag registry.corp.adista.fr/svm/${CI_PROJECT_NAME}
+    - buildah push registry.corp.adista.fr/svm/${CI_PROJECT_NAME}
+    
 
 #deploy:
 #    stage: deploy
