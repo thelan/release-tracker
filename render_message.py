@@ -31,7 +31,7 @@ def render_message(repo_id: str, release: ReleaseInfo, render_format: RenderForm
             f"🚀 **New Release** for {repo_display}: `{release.tag}`",
             "**Assets:**",
         ] + [f"- [{a.name}]({a.download_url})" for a in release.assets]
-        lines.append(footer_md)
+        #lines.append(footer_md)
         return "\n".join(lines)
 
     if render_format == "html":
@@ -46,7 +46,7 @@ def render_message(repo_id: str, release: ReleaseInfo, render_format: RenderForm
             "<p><strong>Assets:</strong></p><ul>",
         ] + [f"<li><a href='{a.download_url}'>{a.name}</a></li>" for a in release.assets]
         lines.append("</ul>")
-        lines.append(footer_html)
+        #lines.append(footer_html)
         return "\n".join(lines)
 
     if render_format == "text":
@@ -60,7 +60,7 @@ def render_message(repo_id: str, release: ReleaseInfo, render_format: RenderForm
             f"New Release for {repo_display}: {release.tag}",
             "Assets:",
         ] + [f"- {a.name}: {a.download_url}" for a in release.assets]
-        lines.append(footer_text)
+        #lines.append(footer_text)
         return "\n".join(lines)
 
     msg = f"Unsupported format: {render_format}"
