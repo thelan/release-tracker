@@ -10,6 +10,10 @@
 # This template uses one generic job with conditional builds
 # for the default branch and all other (MR) branches.
 
+variables:
+  STORAGE_DRIVER: vfs
+  BUILDAH_ISOLATION: chroot
+
 build-with-buildah:
   stage: build
   image: quay.io/buildah/stable:latest
