@@ -1,46 +1,41 @@
-# This file is a template, and might need editing before it works on your project.
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Docker.gitlab-ci.yml
-
-# Build a Docker image with CI/CD and push to the GitLab registry.
-# Docker-in-Docker documentation: https://docs.gitlab.com/ee/ci/docker/using_docker_build.html
-#
-# This template uses one generic job with conditional builds
-# for the default branch and all other (MR) branches.
-
 variables:
-  STORAGE_DRIVER: vfs
-  BUILDAH_ISOLATION: chroot
+  # BuildKit settings
+  BUILDKIT_HOST: "tcp://localhost:1234"
 
-build-with-buildah:
+build-with-buildkit:
   stage: build
-  image: quay.io/buildah/stable:latest
+  image:
+    name: moby/buildkit:rootless
+    entrypoint: [""]
+  # BuildKit needs to run as a sidecar or with specific security permissions.
+  # This command starts the daemon in the background before running the build.
   script:
+    - mkdir -p ~/.docker
+    # Authenticate to GitLab Registry
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > ~/.docker/config.json
+    
+    # Define tag logic
     - |
       if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
         tag="latest"
-        echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
       else
         tag="$CI_COMMIT_REF_SLUG"
-        echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
       fi
-    - echo "$CI_REGISTRY_PASSWORD" | buildah login --username "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-    - buildah build --tag $CI_REGISTRY_IMAGE:latest .
-    - buildah push $CI_REGISTRY_IMAGE:$tag
-    # ADISTA
-    - echo "$ADISTA_REGISTRY_PASSWORD" | buildah login --username "${ADISTA_REGISTRY_LOGIN}" --password-stdin registry.corp.adista.fr
-    - buildah tag $CI_REGISTRY_IMAGE:$tag registry.corp.adista.fr/svm/${CI_PROJECT_NAME}
-    - buildah push registry.corp.adista.fr/svm/${CI_PROJECT_NAME}
-    
 
-#deploy:
-#    stage: deploy
-#    image:
-#        name: bitnami/kubectl:latest
-#        entrypoint: ['']
-#    script:
-#        - kubectl config get-contexts
-#        - kubectl config use-context ${CI_PROJECT_PATH}:servme
-#        - kubectl -n live-servers rollout restart deployment synctube
+    # Build and push using buildctl-daemonless
+    # We use --output to push the image directly to the registry
+    - buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context=. \
+        --local dockerfile=. \
+        --output type=image,name=$CI_REGISTRY_IMAGE:$tag,push=true
+
+    # Handle ADISTA Registry Push
+    # Since BuildKit doesn't have a direct 'tag' command like Buildah, 
+    # we pull and re-push or build again for the second registry.
+    - echo "{\"auths\":{\"registry.corp.adista.fr\":{\"auth\":\"$(echo -n ${ADISTA_REGISTRY_LOGIN}:${ADISTA_REGISTRY_PASSWORD} | base64)\"}}}" >> ~/.docker/config.json
+    - buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context=. \
+        --local dockerfile=. \
+        --output type=image,name=registry.corp.adista.fr/svm/${CI_PROJECT_NAME}:$tag,push=true
